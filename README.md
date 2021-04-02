@@ -1,2 +1,2 @@
 # Portfolio_Optimization
-Convergence of data analytics and portfolio optimization
+Producing a program that link portfolio optimization techniques with data analytics to better return.
