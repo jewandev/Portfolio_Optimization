@@ -1,4 +1,4 @@
-setwd('/Users/wan/Quant')
+setwd('/Users/wan/GitHub/Portfolio_Optimization/R')
 #
 # 패키지 이 중에 없는것만 깔기 ----
 pkg <- c('magrittr', 'quantmod', 'rvest', 'httr', 'jsonlite',
@@ -796,7 +796,6 @@ print(data_value)
 write.csv(data_value, 'data/KOR_value/005930_value.csv')
 
 # 전 종목 재무제표 및 가치지표 다운로드----
-# 나중에 해보자
 library(stringr)
 library(httr)
 library(rvest)
@@ -2888,6 +2887,7 @@ KOSPI200_tilt_mod %>%
         axis.title = element_text(family = 'AppleGothic'))
 
 # 포트폴리오 백테스트 ----
+### 전통적인 60:40 포트폴리오 백테스트
 library(quantmod)
 library(PerformanceAnalytics)
 library(magrittr)
@@ -2904,9 +2904,235 @@ portfolio = Return.portfolio(R = rets,
                              rebalance_on = 'years',
                              verbose = TRUE)
 
+# Return.portfolio 계산 과정
+portfolio_show <- round(cbind(portfolio$BOP.Value$SPY.Adjusted, portfolio$BOP.Value$TLT.Adjusted, 
+                        portfolio$BOP.Value$SPY.Adjusted + portfolio$BOP.Value$TLT.Adjusted, 
+                        portfolio$BOP.Weight$SPY.Adjusted, portfolio$BOP.Weight$TLT.Adjusted,
+                        (portfolio$EOP.Value$SPY.Adjusted/portfolio$BOP.Value$SPY.Adjusted)-1,
+                        (portfolio$EOP.Value$TLT.Adjusted/portfolio$BOP.Value$TLT.Adjusted)-1,
+                        portfolio$EOP.Value$SPY.Adjusted, portfolio$EOP.Value$TLT.Adjusted,
+                        portfolio$EOP.Value$SPY.Adjusted + portfolio$EOP.Value$TLT.Adjusted,
+                        portfolio$EOP.Weight$SPY.Adjusted, portfolio$EOP.Weight$TLT.Adjusted,
+                        portfolio$returns) %>%
+  setNames(c('주식시작가치', '채권시작가치','시작가치합계', '주식시작비중','채권시작비중', 
+             '일별주식수익률', '일별채권수익률', '주식종료가치', '채권종료가치', '가치종료합계', 
+             '주식종료비중', '채권종료비중', '최종수익률')), 3)
+
 portfolios = cbind(rets, portfolio$returns) %>%
   setNames(c('주식', '채권', '60대 40'))
 
+
 charts.PerformanceSummary(portfolios,
-                          main = '60대 40 포트폴리오', text_content(fam))
-theme_classic(base_family = 'AppleGothic')
+                          main = '60대 40 포트폴리오')
+  #par(family='AppleGothic')
+
+turnover = xts(
+  rowSums(abs(portfolio$BOP.Weight -
+                timeSeries::lag(portfolio$EOP.Weight)),
+          na.rm = TRUE),
+  order.by = index(portfolio$BOP.Weight))
+
+chart.TimeSeries(turnover)
+
+###시점 선택전략 백테스트
+# 단순 매수 후 보유 대비 극심한 하락장에서 낙폭을 줄일 수 있음
+# -> 위험 대비 수익률 올릴 수 있음
+# 리밸런싱 매월 실행
+library(quantmod)
+library(PerformanceAnalytics)
+
+symbols = c('SPY', 'SHY')
+getSymbols(symbols, src = 'yahoo')
+
+prices = do.call(cbind,
+                 lapply(symbols, function(x) Ad(get(x))))
+rets = na.omit(Return.calculate(prices))
+
+prices = do.call(cbind,
+                 lapply(symbols, function(x) Ad(get(x))))
+rets = na.omit(Return.calculate(prices))
+ep = endpoints(rets, on = 'months')
+
+print(ep)
+wts = list()
+lookback = 10
+
+i = lookback + 1
+sub_price = prices[ep[i-lookback] : ep[i] , 1]
+
+head(sub_price, 3)
+
+tail(sub_price, 3)
+
+sma = mean(sub_price)
+
+wt = rep(0, 2)
+wt[1] = ifelse(last(sub_price) > sma, 1, 0)
+wt[2] = 1 - wt[1]
+
+wts[[i]] = xts(t(wt), order.by = index(rets[ep[i]]))
+
+ep = endpoints(rets, on = 'months')
+wts = list()
+lookback = 10
+
+for (i in (lookback+1) : length(ep)) {
+  sub_price = prices[ep[i-lookback] : ep[i] , 1]
+  sma = mean(sub_price)
+  wt = rep(0, 2)
+  wt[1] = ifelse(last(sub_price) > sma, 1, 0)
+  wt[2] = 1 - wt[1]
+  
+  wts[[i]] = xts(t(wt), order.by = index(rets[ep[i]]))
+}
+
+wts = do.call(rbind, wts)
+
+Tactical = Return.portfolio(rets, wts, verbose = TRUE)
+portfolios = na.omit(cbind(rets[,1], Tactical$returns)) %>%
+  setNames(c('매수 후 보유', '시점 선택 전략'))
+
+charts.PerformanceSummary(portfolios,
+                          main = "Buy & Hold vs Tactical")
+
+turnover = xts(rowSums(abs(Tactical$BOP.Weight -
+                             timeSeries::lag(Tactical$EOP.Weight)),
+                       na.rm = TRUE),
+               order.by = index(Tactical$BOP.Weight))
+
+chart.TimeSeries(turnover)
+
+
+### 동적 자산배분 백테스트
+library(quantmod)
+library(PerformanceAnalytics)
+library(RiskPortfolios)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+
+symbols = c('SPY', # 미국 주식
+            'IEV', # 유럽 주식 
+            'EWJ', # 일본 주식
+            'EEM', # 이머징 주식
+            'TLT', # 미국 장기채
+            'IEF', # 미국 중기채
+            'IYR', # 미국 리츠
+            'RWX', # 글로벌 리츠
+            'GLD', # 금
+            'DBC'  # 상품
+)
+getSymbols(symbols, src = 'yahoo')
+
+prices = do.call(cbind, lapply(symbols, function(x) Ad(get(x)))) %>%
+  setNames(symbols)
+
+rets = Return.calculate(prices) %>% na.omit()
+
+ep = endpoints(rets, on = 'months')
+wts = list()
+lookback = 12
+wt_zero = rep(0, 10) %>% setNames(colnames(rets))
+
+for (i in (lookback+1) : length(ep)) {
+  sub_ret = rets[ep[i-lookback] : ep[i] , ]
+  cum = Return.cumulative(sub_ret)
+  
+  K = rank(-cum) <= 5
+  covmat = cov(sub_ret[, K])
+  
+  wt = wt_zero
+  wt[K] = optimalPortfolio(covmat,
+                           control = list(type = 'minvol',
+                                          constraint = 'user',
+                                          LB = rep(0.10, 5),
+                                          UB = rep(0.30, 5)))
+  
+  wts[[i]] = xts(t(wt), order.by = index(rets[ep[i]]))
+}
+
+wts = do.call(rbind, wts)
+
+GDAA = Return.portfolio(rets, wts, verbose = TRUE)
+charts.PerformanceSummary(GDAA$returns, main = '동적자산배분')
+
+wts %>% fortify.zoo() %>%
+  gather(key, value, -Index) %>%
+  mutate(Index = as.Date(Index)) %>%
+  mutate(key = factor(key, levels = unique(key))) %>%
+  ggplot(aes(x = Index, y = value)) +
+  geom_area(aes(color = key, fill = key),
+            position = 'stack') +
+  xlab(NULL) + ylab(NULL) +  theme_bw() +
+  scale_x_date(date_breaks="years", date_labels="%Y",
+               expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0, 0)) +
+  theme(plot.title = element_text(hjust = 0.5,
+                                  size = 12),
+        legend.position = 'bottom',
+        legend.title = element_blank(),
+        axis.text.x = element_text(angle = 45,
+                                   hjust = 1, size = 8),
+        panel.grid.minor.x = element_blank()) +
+  guides(color = guide_legend(byrow = TRUE))
+
+GDAA$turnover = xts(
+  rowSums(abs(GDAA$BOP.Weight -
+                timeSeries::lag(GDAA$EOP.Weight)),
+          na.rm = TRUE),
+  order.by = index(GDAA$BOP.Weight))
+
+chart.TimeSeries(GDAA$turnover)
+
+fee = 0.0030
+GDAA$net = GDAA$returns - GDAA$turnover*fee
+
+cbind(GDAA$returns, GDAA$net) %>%
+  setNames(c('No Fee', 'After Fee')) %>%
+  charts.PerformanceSummary(main = 'GDAA')
+
+# 기존 비용을 고려하지 않은 포트폴리오(검은색)에 비해
+# 비용을 차감한 포트폴리오(빨)의 수익률이 시간이 지남에 따라 서서히 감소
+# 이러한 차이는 비용이 크거나 매매 회전율이 높을 수록 더욱 벌어짐
+
+# 성과 및 위험 평가 ----
+library(dplyr)
+library(readxl)
+library(xts)
+library(timetk)
+
+url = 'https://images.aqr.com/-/media/AQR/Documents/Insights/Data-Sets/Quality-Minus-Junk-Factors-Monthly.xlsx'
+
+tf = tempfile(fileext = '.xlsx')
+download.file(url, tf, mode = 'wb')
+
+excel_sheets(tf)
+
+df_QMJ = read_xlsx(tf, sheet = 'QMJ Factors', skip = 18) %>%
+  select(DATE, Global)
+df_MKT = read_xlsx(tf, sheet = 'MKT', skip = 18) %>%
+  select(DATE, Global)
+df_SMB = read_xlsx(tf, sheet = 'SMB', skip = 18) %>%
+  select(DATE, Global)
+df_HML_Devil = read_xlsx(tf, sheet = 'HML Devil',
+                         skip = 18) %>%
+  select(DATE, Global)
+df_UMD = read_xlsx(tf, sheet = 'UMD', skip = 18) %>%
+  select(DATE, Global)
+df_RF = read_xlsx(tf, sheet = 'RF', skip = 18) 
+
+df = Reduce(function(x, y) inner_join(x, y, by = 'DATE'),
+            list(df_QMJ, df_MKT, df_SMB,
+                 df_HML_Devil,df_UMD, df_RF)) %>%
+  setNames(c('DATE','QMJ', 'MKT', 'SMB',
+             'HML', 'UMD', 'RF')) %>%
+  na.omit() %>%
+  mutate(DATE = as.Date(DATE, "%m/%d/%Y"),
+         R_excess = QMJ - RF,
+         Mkt_excess = MKT - RF) %>%
+  tk_xts(date_var = DATE)
+
+### 결과측정 지표
+# 수익률 및 변동성
+library(PerformanceAnalytics)
+chart.CumReturns(df$QMJ)
