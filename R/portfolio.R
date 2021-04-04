@@ -729,10 +729,10 @@ write.csv(data_fs, 'data/Kor_fs/005930_fs.csv')
 
 # 가치지표 계산하기----
 # 위에서 이어짐
-# PER : Earning (순이익)
-# PBR : Book Value (순자산)
-# PCR : Cashflow (영업활동현금흐름)
-# PSR : Sales (매출액)
+# PER 분모 : Earning (순이익)
+# PBR 분모 : Book Value (순자산)
+# PCR 분모 : Cashflow (영업활동현금흐름)
+# PSR 분모 : Sales (매출액)
 
 # 이것들의 분자는 주가, 분모는 재무제표 데이터.
 
@@ -1414,7 +1414,7 @@ data_market %>%
   select(`종목명`, `ROE`, `size`) %>% head()
 
 # filter(): 조건을 충족하는 행 선택
-# 이 이후는 나중에 ㄱㄱ
+
 #
 # (기본 종목 선정)베타 계산하기----
 # 베타: 개별 주식이 전체 주식시장의 변동에 반응하는 정도를 나타낸 값
@@ -2302,6 +2302,21 @@ cbind(quality_profit, KOR_value, ret_bind)[invest_qvm, ] %>%
 cbind(quality_profit, KOR_value, ret_bind)[invest_qvm, ] %>% 
   apply(., 2, mean) %>% round(3) %>% t()
 
+###test#######
+KOR_ticker[invest_qvm, ]
+price
+KOR_price[,invest_qvm]
+
+
+####
+
+
+
+
+
+
+
+
 # 포트폴리오 구성을 위한 ETF 데이터 탐색 ----
 library(quantmod)
 library(PerformanceAnalytics)
@@ -2327,7 +2342,10 @@ prices = do.call(cbind,
 
 # 수익률 계산
 rets = Return.calculate(prices) %>% na.omit()
+rets <- rets["2018-07-16::2021-03-24"]
 
+nrow(rets)
+tail(rets)
 library(tidyr)
 library(dplyr)
 library(corrplot)
@@ -2918,13 +2936,15 @@ portfolio_show <- round(cbind(portfolio$BOP.Value$SPY.Adjusted, portfolio$BOP.Va
              '일별주식수익률', '일별채권수익률', '주식종료가치', '채권종료가치', '가치종료합계', 
              '주식종료비중', '채권종료비중', '최종수익률')), 3)
 
+par(family='AppleGothic')
+
 portfolios = cbind(rets, portfolio$returns) %>%
   setNames(c('주식', '채권', '60대 40'))
 
 
 charts.PerformanceSummary(portfolios,
-                          main = '60대 40 포트폴리오')
-  #par(family='AppleGothic')
+                          main = '60대 40 포트폴리오') %>%
+  par(family='AppleGothic')
 
 turnover = xts(
   rowSums(abs(portfolio$BOP.Weight -
@@ -3003,6 +3023,8 @@ turnover = xts(rowSums(abs(Tactical$BOP.Weight -
 chart.TimeSeries(turnover)
 
 
+
+
 ### 동적 자산배분 백테스트
 library(quantmod)
 library(PerformanceAnalytics)
@@ -3054,7 +3076,13 @@ for (i in (lookback+1) : length(ep)) {
 wts = do.call(rbind, wts)
 
 GDAA = Return.portfolio(rets, wts, verbose = TRUE)
+
 charts.PerformanceSummary(GDAA$returns, main = '동적자산배분')
+
+portfolios = na.omit(cbind(GDAA$returns, Tactical$returns)) %>%
+  setNames(c('동적 자산 배분', '시점 선택 전략'))
+
+charts.PerformanceSummary(portfolios, main = "시점선택 VS 동적자산배분")
 
 wts %>% fortify.zoo() %>%
   gather(key, value, -Index) %>%
@@ -3090,6 +3118,25 @@ GDAA$net = GDAA$returns - GDAA$turnover*fee
 cbind(GDAA$returns, GDAA$net) %>%
   setNames(c('No Fee', 'After Fee')) %>%
   charts.PerformanceSummary(main = 'GDAA')
+
+Tactical$turnover = xts(
+  rowSums(abs(Tactical$BOP.Weight -
+                timeSeries::lag(Tactical$EOP.Weight)),
+          na.rm = TRUE),
+  order.by = index(Tactical$BOP.Weight))
+
+chart.TimeSeries(Tactical$turnover)
+
+fee = 0.0030
+Tactical$net = Tactical$returns - Tactical$turnover*fee
+
+cbind(Tactical$returns, Tactical$net) %>%
+  setNames(c('No Fee', 'After Fee')) %>%
+  charts.PerformanceSummary(main = 'Tactical')
+
+cbind(Tactical$net, GDAA$net) %>%
+  setNames(c('Tactical Fee', 'GDAA Fee')) %>%
+  charts.PerformanceSummary(main = ' Tactical vs GDAA')
 
 # 기존 비용을 고려하지 않은 포트폴리오(검은색)에 비해
 # 비용을 차감한 포트폴리오(빨)의 수익률이 시간이 지남에 따라 서서히 감소
@@ -3134,5 +3181,122 @@ df = Reduce(function(x, y) inner_join(x, y, by = 'DATE'),
 
 ### 결과측정 지표
 # 수익률 및 변동성
+library(dplyr)
+library(readxl)
+library(xts)
+library(timetk)
+
+url = 'https://images.aqr.com/-/media/AQR/Documents/Insights/Data-Sets/Quality-Minus-Junk-Factors-Monthly.xlsx'
+
+tf = tempfile(fileext = '.xlsx')
+download.file(url, tf, mode = 'wb')
+
+excel_sheets(tf)
+
+df_QMJ = read_xlsx(tf, sheet = 'QMJ Factors', skip = 18) %>%
+  select(DATE, Global)
+df_MKT = read_xlsx(tf, sheet = 'MKT', skip = 18) %>%
+  select(DATE, Global)
+df_SMB = read_xlsx(tf, sheet = 'SMB', skip = 18) %>%
+  select(DATE, Global)
+df_HML_Devil = read_xlsx(tf, sheet = 'HML Devil',
+                         skip = 18) %>%
+  select(DATE, Global)
+df_UMD = read_xlsx(tf, sheet = 'UMD', skip = 18) %>%
+  select(DATE, Global)
+df_RF = read_xlsx(tf, sheet = 'RF', skip = 18) 
+
+df = Reduce(function(x, y) inner_join(x, y, by = 'DATE'),
+            list(df_QMJ, df_MKT, df_SMB,
+                 df_HML_Devil,df_UMD, df_RF)) %>%
+  setNames(c('DATE','QMJ', 'MKT', 'SMB',
+             'HML', 'UMD', 'RF')) %>%
+  na.omit() %>%
+  mutate(DATE = as.Date(DATE, "%m/%d/%Y"),
+         R_excess = QMJ - RF,
+         Mkt_excess = MKT - RF) %>%
+  tk_xts(date_var = DATE)
+
+
 library(PerformanceAnalytics)
 chart.CumReturns(df$QMJ)
+
+prod((1+df$QMJ)) - 1 # 누적수익률
+mean(df$QMJ) * 12 # 연율화 수익률(산술)
+(prod((1+df$QMJ)))^(12 / nrow(df$QMJ)) - 1 # 연율화 수익률(기하)
+Return.cumulative(df$QMJ) # 누적수익률
+Return.annualized(df$QMJ, geometric = FALSE) # 연율화 수익률(산술)
+Return.annualized(df$QMJ) # 연율화 수익률(기하)
+sd(df$QMJ) * sqrt(12) # 연율화 변동성
+StdDev.annualized(df$QMJ) # 연율화 변동성
+SharpeRatio.annualized(df$QMJ, Rf = df$RF, geometric = TRUE)
+
+table.Drawdowns(df$QMJ)
+maxDrawdown(df$QMJ)
+
+chart.Drawdown(df$QMJ)
+CalmarRatio(df$QMJ)
+apply.yearly(df$QMJ, Return.cumulative) %>% head()
+
+library(lubridate)
+library(tidyr)
+library(ggplot2)
+
+R.yr = apply.yearly(df$QMJ, Return.cumulative) %>%
+  fortify.zoo() %>%
+  mutate(Index = year(Index)) %>%
+  gather(key, value, -Index) %>%
+  mutate(key = factor(key, levels = unique(key)))
+
+ggplot(R.yr, aes(x = Index, y = value, fill = key)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  ggtitle('Yearly Return') +
+  xlab(NULL) +
+  ylab(NULL) +
+  theme_bw() +
+  scale_y_continuous(expand = c(0.03, 0.03)) +
+  scale_x_continuous(breaks = R.yr$Index,
+                     expand = c(0.01, 0.01)) +
+  theme(plot.title = element_text(hjust = 0.5,
+                                  size = 12),
+        legend.position = 'bottom',
+        legend.title = element_blank(),
+        legend.text = element_text(size=7),
+        axis.text.x = element_text(angle = 45,
+                                   hjust = 1, size = 8),
+        panel.grid.minor.x = element_blank() ) +
+  guides(fill = guide_legend(byrow = TRUE)) +
+  geom_text(aes(label = paste(round(value * 100, 2), "%"),
+                vjust = ifelse(value >= 0, -0.5, 1.5)),
+            position = position_dodge(width = 1),
+            size = 3)
+
+UpsideFrequency(df$QMJ, MAR = 0)
+
+roll_12 = df$QMJ %>% apply.monthly(., Return.cumulative) %>%
+  rollapply(., 12, Return.annualized) %>% na.omit() %>%
+  UpsideFrequency()
+
+roll_24 = df$QMJ %>% apply.monthly(., Return.cumulative) %>%
+  rollapply(., 24, Return.annualized) %>% na.omit() %>%
+  UpsideFrequency()
+
+roll_36 = df$QMJ %>% apply.monthly(., Return.cumulative) %>%
+  rollapply(., 36, Return.annualized) %>% na.omit() %>%
+  UpsideFrequency()
+
+roll_win = cbind(roll_12, roll_24, roll_36)
+print(roll_win)
+
+df$QMJ %>% apply.monthly(., Return.cumulative) %>%
+  rollapply(., 12, Return.annualized) %>% na.omit() %>%
+  fortify.zoo() %>%
+  ggplot(aes(x = Index, y = QMJ)) +
+  geom_line() +
+  geom_hline(aes(yintercept = 0), color = 'red') +
+  xlab(NULL) + ylab(NULL)
+
+# 팩터 회귀분석 및 테이블로 나타내기
+reg = lm(R_excess ~ Mkt_excess + SMB + HML + UMD, data = df)
+# summary(reg)
+summary(reg)$coefficient
