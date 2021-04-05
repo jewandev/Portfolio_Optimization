@@ -16,25 +16,20 @@ prices = do.call(cbind,
                  lapply(symbols, function(x) Ad(get(x))))
 rets = na.omit(Return.calculate(prices))
 ep = endpoints(rets, on = 'months')
-
 print(ep)
+
 wts = list()
 lookback = 10
-
 i = lookback + 1
 sub_price = prices[ep[i-lookback] : ep[i] , 1]
-
 head(sub_price, 3)
-
 tail(sub_price, 3)
-
 sma = mean(sub_price)
-
 wt = rep(0, 2)
 wt[1] = ifelse(last(sub_price) > sma, 1, 0)
 wt[2] = 1 - wt[1]
-
 wts[[i]] = xts(t(wt), order.by = index(rets[ep[i]]))
+wts[[i]]
 
 ep = endpoints(rets, on = 'months')
 wts = list()
@@ -55,6 +50,10 @@ wts = do.call(rbind, wts)
 Tactical = Return.portfolio(rets, wts, verbose = TRUE)
 portfolios = na.omit(cbind(rets[,1], Tactical$returns)) %>%
   setNames(c('매수 후 보유', '시점 선택 전략'))
+
+head(Tactical, 10)
+
+par(family = 'AppleGothic')
 
 charts.PerformanceSummary(portfolios,
                           main = "Buy & Hold vs Tactical")
@@ -170,7 +169,7 @@ cbind(Tactical$returns, Tactical$net) %>%
   charts.PerformanceSummary(main = 'Tactical')
 
 cbind(Tactical$net, GDAA$net) %>%
-  setNames(c('Tactical Fee', 'GDAA Fee')) %>%
+  setNames(c('Tactical after Fee', 'GDAA after Fee')) %>%
   charts.PerformanceSummary(main = ' Tactical vs GDAA')
 
 ### 성과분석--------
@@ -211,7 +210,7 @@ CalmarRatio(Tactical$returns)
 
 #### 연도 별 수익률
 apply.yearly(Tactical$returns, Return.cumulative) %>% head()
-
+apply.yearly(Tactical$returns, Return.cumulative)
 library(lubridate)
 library(tidyr)
 library(ggplot2)

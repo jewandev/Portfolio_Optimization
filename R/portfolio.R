@@ -325,7 +325,7 @@ down_sector <- rbind(down_sector_KS, down_sector_KQ)
 
 ifelse(dir.exists('data'), FALSE, dir.create('data'))
 write.csv(down_sector, 'data/krx_sector.csv') # 깨짐
-
+sector <- read.csv('krx_sector.csv')
 # 개별 종목 지표 크롤링
 library(httr)
 library(rvest)
@@ -2146,10 +2146,10 @@ KOR_value %>%
 # - 퀄리티: 자기자본이익률, 매출 총이익, 영업활동현금흐름
 # - 밸류: PER, PBR, PSR, PCR
 # - 모멘텀: 3개월 수익률, 6개월 수익률, 12개월 수익률
-
+library(dplyr)
 library(xts)
 library(stringr)
-
+library(tidyr)
 KOR_fs = readRDS('data/KOR_fs.Rds')
 KOR_value = read.csv('data/KOR_value.csv', row.names = 1,
                      stringsAsFactors = FALSE)
@@ -3074,7 +3074,6 @@ for (i in (lookback+1) : length(ep)) {
 }
 
 wts = do.call(rbind, wts)
-
 GDAA = Return.portfolio(rets, wts, verbose = TRUE)
 
 charts.PerformanceSummary(GDAA$returns, main = '동적자산배분')

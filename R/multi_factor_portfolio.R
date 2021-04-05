@@ -1,3 +1,5 @@
+setwd('/Users/wan/GitHub/Portfolio_Optimization/R')
+#
 ### ------
 KOR_ticker[invest_qvm, ]
 price
@@ -18,7 +20,7 @@ DEXKOUS = Quandl("FRED/DEXKOUS", start_date=dt_start,end_date=dt_end,type="xts")
 getSymbols('DEXKOUS', src = 'FRED')
 DEXKOUS['2018-03-26']
 prices <- do.call(cbind,
-                  lapply(DEXKOUS, function(x) index(DEXKOUS[x])>"2018-03-25" & index(DEXKOUS[x]) < "2021-03-24"))))
+                  lapply(DEXKOUS, function(x) index(DEXKOUS[x])>"2018-03-25" & index(DEXKOUS[x]) < "2021-03-24"))
 
 index(DEXKOUS["2018-03-26"]) > "2018-03-25"
 xts::last(DEXKOUS["2018-03"],2)
@@ -33,9 +35,10 @@ DEXKOUS["2018-03-26::2021-03-24"]
 # - 퀄리티: 자기자본이익률, 매출 총이익, 영업활동현금흐름
 # - 밸류: PER, PBR, PSR, PCR
 # - 모멘텀: 3개월 수익률, 6개월 수익률, 12개월 수익률
-
+library(dplyr)
 library(xts)
 library(stringr)
+library(tidyr)
 
 KOR_fs = readRDS('data/KOR_fs.Rds')
 KOR_value = read.csv('data/KOR_value.csv', row.names = 1,
@@ -146,8 +149,12 @@ factor_qvm =
 # 최종적으로 기준 상위 20종목 선택
 invest_qvm = rank(factor_qvm) <= 20
 
+data.frame(cbind("ticker" = KOR_ticker[,1][invest_qvm],
+                 "corp" = KOR_ticker[,2][invest_qvm])) 
 ### 선택된 종목의 퀄리티 지표 별 분포
-KOR_value[invest_qvm, ] %>%
+library(tidyr)
+
+quality_profit[invest_qvm, ] %>%
   gather() %>%
   ggplot(aes(x = value)) +
   geom_histogram() +
@@ -183,6 +190,10 @@ KOR_ticker[invest_qvm, ] %>%
 # 전반적으로 ROE는 높고, PBR은 낮으며 12개월 수익률은 높은 모습
 # 물론 특정 팩터의 강도가 약하더라도 나머지 팩터의 강도가 충분히 강하다면
 # 포트폴리오에 편입 됨.
+cbind(quality_profit, KOR_value, ret_bind)[invest_qvm, ] %>% 
+  apply(., 2, mean) %>% round(3) %>% t()
+
+####
 Sys.setenv(TZ="Asia/Seoul")
 Sys.getenv('TZ')
 kospi <- getSymbols('069500.KS')
