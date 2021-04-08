@@ -2054,6 +2054,7 @@ KOR_ticker[invest_magic, ] %>%
          `투하자본수익률` = round(magic_roc[invest_magic, ], 4))
 # (심화 종목 선정) 이상치 데이터 제거 및 팩터의 결합 ----
 
+
 #### 이상치 데이터 탐색
 library(magrittr)
 library(ggplot2)
