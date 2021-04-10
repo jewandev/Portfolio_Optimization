@@ -2,6 +2,7 @@
 ## dtwclust----
 library(dtwclust)
 data("uciCT")
+glimpse(CharTraj)
 pc <- tsclust(CharTraj, type = "partitional", k = 20L, 
               distance = "dtw_basic", centroid = "pam", 
               seed = 3247L, trace = TRUE,
@@ -29,3 +30,11 @@ mvc <- tsclust(CharTrajMV[1L:20L], k = 4L, distance = "gak", seed = 390L)
 plot(mvc, labels = list(nudge_x = -10, nudge_y = 1))
 
 
+glimpse(KOR_price)
+exam <- KOR_price[, 1]
+
+ex <- tsclust(exam, type = "partitional", k = 20L, 
+              distance = "dtw_basic", centroid = "pam", 
+              seed = 3247L, trace = TRUE,
+              args = tsclust_args(dist = list(window.size = 20L)))
+plot(ex)
