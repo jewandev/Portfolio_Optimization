@@ -1,6 +1,7 @@
-
-## dtwclust----
 library(dtwclust)
+library(dtw)
+setwd('/Users/wan/GitHub/Portfolio_Optimization/time_series_clustering')
+## dtwclust----
 data("uciCT")
 glimpse(CharTraj)
 pc <- tsclust(CharTraj, type = "partitional", k = 20L, 
@@ -89,7 +90,6 @@ library(RiskPortfolios)
 library(tidyr)
 library(dplyr)
 library(ggplot2)
-last(ksp)
 
 ### 코스피
 ksp = read.csv('data/kospi_close.csv', row.names = 1,
@@ -104,9 +104,9 @@ for (i in (lookback+1) : length(ksp_ep)) {
 ksp_part
 
 ### 코스닥
-ksdq = read.csv('data/kosdaq_close.csv', row.names = 1,
+ksdq <- read.csv('data/kosdaq_close.csv', row.names = 1,
                 stringsAsFactors = FALSE) %>% as.xts()
-ksdq_ep = endpoints(ksdq, on = 'months')
+ksdq_ep <- endpoints(ksdq, on = 'months')
 head(ksdq)
 ksdq_part <- list()
 lookback <- 1
@@ -116,9 +116,9 @@ for (i in (lookback+1) : length(ksdq_ep)) {
 }
 
 ### 달러
-usd = read.csv('data/usd_close.csv', row.names = 1,
+usd <- read.csv('data/usd_close.csv', row.names = 1,
                stringsAsFactors = FALSE) %>% as.xts()
-usd_ep = endpoints(usd, on = 'months')
+usd_ep <- endpoints(usd, on = 'months')
 head(usd)
 usd_part <- list()
 lookback <- 1
@@ -165,17 +165,42 @@ usd_part_Norm
 ksp_part_Norm # 코스피
 ksdq_part_Norm # 코스닥
 usd_part_Norm # 달러환율
-
+#Sys.getenv()
+#Sys.setenv(JAVA_HOME="/Library/Java/JavaVirtualMachines/jdk-13.0.2.jdk")
+#library(TSclust)
+#diss(ksp_part_Norm)
 library(dtwclust)
 data("uciCT")
 ### 코스피
 glimpse(ksp_part_Norm)
-pc <- tsclust(ksp_part_Norm, type = "partitional", k = 7L, 
+pc.dtw <- tsclust(ksp_part_Norm,
+                  type="partitional",
+                  centroid = "pam",
+                  k = 2L:14L,
+                  distance ="dtw_basic",
+                  seed=1234,
+                  trace=T,
+                  args = tsclust_args(dist = list(window.size = 60L))
+                  )
+
+eval_clust<-sapply(pc.dtw, cvi) # 지표 값 데이터 저장
+eval_clust[4,]
+plot(eval_clust[4,], type = 'l')
+plot(eval_clust[1,], type = 'l')
+plot(eval_clust[1,],type="l", main="sil index", 
+     xlab="The number of clusters", ylab="To Be Maximum")
+
+pc <- tsclust(ksp_part_Norm, type = "partitional", k = 8L, 
               distance = "dtw_basic", centroid = "pam", 
               seed = 3247L, trace = TRUE,
-              args = tsclust_args(dist = list(window.size = 7L)))
+              args = tsclust_args(dist = list(window.size = 60L)))
 plot(pc)
+pc@centroid
 
+hc <- tsclust(ksp_part_Norm, type = "hierarchical", k = 20L, 
+              distance = "sbd", trace = TRUE,
+              control = hierarchical_control(method = "average"))
+plot(hc)
 
 ### 코스닥
 glimpse(ksdq_part_Norm)
@@ -192,3 +217,4 @@ pc <- tsclust(usd_part_Norm, type = "partitional", k = 9L,
               seed = 3247L, trace = TRUE,
               args = tsclust_args(dist = list(window.size = 9L)))
 plot(pc)
+
