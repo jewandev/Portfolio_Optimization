@@ -104,7 +104,7 @@ for (i in (lookback+1) : (length(ksp_ep)-1)) {
   idx <- substr(as.character(index(ksp[ksp_ep[i]])), 1, 7)
   ksp_part_now[[idx]] <- as.vector(ksp[ksp_ep[i-lookback] : ksp_ep[i] , 1])
 }
-ksp_part_now
+head(ksp_part_now)
 
 # 다음달 수익률 확인 리스트
 ksp_part_next <- list()
@@ -112,7 +112,7 @@ for (i in (lookback+2) : length(ksp_ep)) {
   idx <- substr(as.character(index(ksp[ksp_ep[i]])), 1, 7)
   ksp_part_next[[idx]] <- as.vector(ksp[ksp_ep[i-lookback] : ksp_ep[i], 1])
 }
-ksp_part_next
+head(ksp_part_next)
 
 ### 코스닥
 ksdq <- read.csv('data/kosdaq_close.csv', row.names = 1,
@@ -175,7 +175,7 @@ for (i in c(1: length(ksp_part_now))){
   idx <- names(ksp_part_now)[i]
   ksp_part_Norm[[idx]] <- (ksp_part_now[[i]] - part_mean) / sd(ksp_part_now[[i]])
 }
-ksp_part_Norm
+head(ksp_part_Norm)
 
 # 코스피(다음 달)
 ksp_part_Norm_next <- list()
@@ -277,12 +277,12 @@ plot(ksp_pc, type = "centroids", clus = 5L)
 
 ksp_pc@control
 ksp_pc@cluster
-ex <- cbind(names(ksp_part_Norm), cluster = ksp_pc@cluster)
+clust_data <- cbind(names(ksp_part_Norm), cluster = ksp_pc@cluster)
 
 # 군집 별 구간 리스트
 ksp_clust <- list()
 for (i in 1:5){
-  ksp_clust[i] <- list(ex[,1][as.numeric(ex[,2])==i])
+  ksp_clust[i] <- list(clust_data[,1][as.numeric(clust_data[,2])==i])
 }
 
 # 군집 별 다음 구간
@@ -293,40 +293,55 @@ for (i in 1:5){
   }
 }
 ksp_next_period
-ksp_part_now[ksp_clust[[1]][1]]
-ksp_part_next[names(ksp_part_next) == ksp_next_period[[1]][1]]
-ksp_next_period
 
 
 # 다음달 수익률 확인 리스트
-next_period_ts <- list()
+ksp_next_period_ts <- list()
 for (i in 1:5){
-  next_period_ts[[i]] <- ksp_part_next[ksp_next_period[[i]]]
-  for (j in 1:length(next_period_ts[[i]])){
-    next_period_ts[[i]][[j]] <- ts(next_period_ts[[i]][[j]], start = 1, end = length(next_period_ts[[i]][[j]]))
+  ksp_next_period_ts[[i]] <- ksp_part_next[ksp_next_period[[i]]]
+  for (j in 1:length(ksp_next_period_ts[[i]])){
+    ksp_next_period_ts[[i]][[j]] <- ts(ksp_next_period_ts[[i]][[j]], start = 1, end = length(ksp_next_period_ts[[i]][[j]]))
   }
 }
-next_period_ts
+ksp_next_period_ts
 
-Return.calculate(next_period_ts[[1]][[1]]) %>% xts::last(length(next_period_ts[[1]][[1]])-1) %>%
-  sapply(., function(x) {prod(1+x) - 1})
-
-'''
-for (i in (lookback+2) : length(ksp_ep)) {
-  idx <- substr(as.character(index(ksp[ksp_ep[i]])), 1, 7)
-  if (idx %in% ksp_next_period[[1]]){
-    next_period_ts[[1]] <- append(next_period_ts[[1]], ksp_part_next[[idx]])
+# 누적수익률 계산
+ksp_next_rets <- list()
+for (i in 1:5){
+  ksp_next_rets[[i]] <- list()
+  for (j in 1:length(ksp_next_period_ts[[i]])){
+    ksp_next_rets[[i]][[j]] <- Return.calculate(ksp_next_period_ts[[i]][[j]]) %>% 
+      xts::last(length(ksp_next_period_ts[[i]][[j]])-1) %>%
+      sapply(., function(x) {prod(1+x) - 1})
   }
-  ksp_part_next[[idx]] <- ksp[ksp_ep[i-lookback] : ksp_ep[i], 1]
 }
-ksp_part_next
-'''
+ksp_next_rets
+
+ksp_rets_mean <- list()
+ksp_rets_data <- list()
+for (i in 1:5){
+  ksp_rets_data[[i]] <- list()
+  rets_sum <- list()
+  for (j in 1:length(ksp_next_rets[[i]])){
+    rets_sum <- append(rets_sum, ksp_next_rets[[i]][[j]][[length(ksp_next_rets[[i]][[j]])]])
+  }
+  rets_sum <- rets_sum %>% unlist
+  ksp_rets_data[[i]] <- append(ksp_rets_data[[i]], rets_sum) %>% unlist
+  ksp_rets_mean <- append(ksp_rets_mean, sum(rets_sum)/length(rets_sum))
+}
+
+ksp_rets_data # 군집 별 월별 수익률 모멘텀 모든 데이터
+ksp_rets_mean # 군집별 다음달 누적수익률 평균
 
 
 
 
 
-''' 계층적 방법(이건 나중에 다뤄보자)
+
+
+
+''' 
+계층적 방법(이건 나중에 다뤄보자)
 ksp_hier <- tsclust(ksp_part_Norm, type = "h", k = 5L, distance = "dtw")
 plot(ksp_hier)
 plot(ksp_hier, type="sc")
@@ -340,7 +355,7 @@ cutree(ksp_hier, k=6L)
 ### 코스닥 : 9개 군집이 최적
 glimpse(ksdq_part_Norm)
 
-pc.dtw <- tsclust(ksdq_part_Norm,
+ksdq.dtw <- tsclust(ksdq_part_Norm,
                   type="partitional",
                   centroid = "pam",
                   k = 2L:14L,
@@ -350,10 +365,10 @@ pc.dtw <- tsclust(ksdq_part_Norm,
                   args = tsclust_args(dist = list(window.size = 30L))
 )
 
-eval_clust<-sapply(pc.dtw, cvi) # 지표 값 데이터 저장
+ksdq_eval_clust<-sapply(ksdq.dtw, cvi) # 지표 값 데이터 저장
 
-plot(eval_clust[1,], type = 'l')
-plot(eval_clust[4,], type = 'l')
+plot(ksdq_eval_clust[1,], type = 'l')
+plot(ksdq_eval_clust[4,], type = 'l')
 
 pc <- tsclust(ksdq_part_Norm, type = "partitional", k = 9L, 
               distance = "dtw_basic", centroid = "pam", 
@@ -361,10 +376,109 @@ pc <- tsclust(ksdq_part_Norm, type = "partitional", k = 9L,
               args = tsclust_args(dist = list(window.size = 30L)))
 plot(pc)
 
+plot(ksdq_eval_clust[1,], type = 'l', main="Silhouette index(to be maximized)")
+
+#plot(ksdq_eval_clust[2,], type = 'l', main="Score function(to be maximized)")
+
+plot(ksdq_eval_clust[3,], type = 'l', main="Calinski-Harabasz index(to be maximized)")
+
+plot(ksdq_eval_clust[4,], type = 'l', main="Davies–Bouldin index(to be minimized)")
+
+plot(ksdq_eval_clust[5,], type = 'l', main="Modified Davies–Bouldin index(to be minimized)")
+
+plot(ksdq_eval_clust[6,], type = 'l', main="Dunn index(to be maximized)")
+
+plot(ksdq_eval_clust[7,], type = 'l', main="COP index(to be minimized)")
+
+
+
+## 4개 군집이 최적
+# 군집 그래프
+ksdq_pc <- tsclust(ksdq_part_Norm, type = "partitional", k = 4L, 
+                  distance = "dtw_basic", centroid = "pam", 
+                  seed = 3247L, trace = TRUE,
+                  args = tsclust_args(dist = list(window.size = 30L)))
+plot(ksdq_pc)
+# 각 군집 그래프
+plot(ksdq_pc, type = "sc", clus = 1L)
+
+# 군집 별 센트로이드 그래프(중위)
+plot(ksdq_pc, type = "centroids", clus = 1L)
+plot(ksdq_pc, type = "centroids", clus = 2L)
+plot(ksdq_pc, type = "centroids", clus = 3L)
+plot(ksdq_pc, type = "centroids", clus = 4L)
+
+ksdq_pc@control
+ksdq_pc@cluster
+clust_data <- cbind(names(ksdq_part_Norm), cluster = ksdq_pc@cluster)
+
+# 군집 별 구간 리스트
+ksdq_clust <- list()
+for (i in 1:4){
+  ksdq_clust[i] <- list(clust_data[,1][as.numeric(clust_data[,2])==i])
+}
+
+# 군집 별 다음 구간
+ksdq_next_period <- ksdq_clust
+for (i in 1:4){
+  for (j in 1:length(ksdq_clust[[i]])){
+    ksdq_next_period[[i]][j] <- names(ksdq_part_next[names(ksdq_part_now)==ksdq_clust[[i]][j]])
+  }
+}
+ksdq_next_period
+ksdq_part_now[ksdq_clust[[1]][1]]
+ksdq_part_next[names(ksdq_part_next) == ksdq_next_period[[1]][1]]
+ksdq_next_period
+
+# 다음달 수익률 확인 리스트
+ksdq_next_period_ts <- list()
+for (i in 1:4){
+  ksdq_next_period_ts[[i]] <- ksdq_part_next[ksdq_next_period[[i]]]
+  for (j in 1:length(ksdq_next_period_ts[[i]])){
+    ksdq_next_period_ts[[i]][[j]] <- ts(ksdq_next_period_ts[[i]][[j]], start = 1, end = length(ksdq_next_period_ts[[i]][[j]]))
+  }
+}
+ksdq_next_period_ts
+ksdq_next_period_ts[[1]][1]
+
+
+Return.calculate(ksdq_next_period_ts[[1]][[1]]) %>% xts::last(length(ksdq_next_period_ts[[1]][[1]])-1) %>%
+  sapply(., function(x) {prod(1+x) - 1})
+
+# 누적수익률 계산
+ksdq_next_rets <- list()
+for (i in 1:4){
+  ksdq_next_rets[[i]] <- list()
+  for (j in 1:length(ksdq_next_period_ts[[i]])){
+    ksdq_next_rets[[i]][[j]] <- Return.calculate(ksdq_next_period_ts[[i]][[j]]) %>% 
+      xts::last(length(ksdq_next_period_ts[[i]][[j]])-1) %>%
+      sapply(., function(x) {prod(1+x) - 1})
+  }
+}
+
+ksdq_rets_mean <- list()
+ksdq_rets_data <- list()
+for (i in 1:4){
+  ksdq_rets_data[[i]] <- list()
+  rets_sum <- list()
+  for (j in 1:length(ksdq_next_rets[[i]])){
+    rets_sum <- append(rets_sum, ksdq_next_rets[[i]][[j]][[length(ksdq_next_rets[[i]][[j]])]])
+  }
+  rets_sum <- rets_sum %>% unlist
+  ksdq_rets_data[[i]] <- append(ksdq_rets_data[[i]], rets_sum) %>% unlist
+  ksdq_rets_mean <- append(ksdq_rets_mean, sum(rets_sum)/length(rets_sum))
+}
+
+ksdq_rets_data # 군집 별 월별 누적수익률 모멘텀 모든 데이터
+ksdq_rets_mean # 군집별 다음달 누적수익률 평균
+
+
+
+
 ### 달러환율: 10개 군집 최적
 glimpse(usd_part_Norm)
 
-pc.dtw <- tsclust(usd_part_Norm,
+usd.dtw <- tsclust(usd_part_Norm,
                   type="partitional",
                   centroid = "pam",
                   k = 2L:14L,
@@ -374,14 +488,107 @@ pc.dtw <- tsclust(usd_part_Norm,
                   args = tsclust_args(dist = list(window.size = 30L))
 )
 
-eval_clust<-sapply(pc.dtw, cvi) # 지표 값 데이터 저장
+usd_eval_clust<-sapply(usd.dtw, cvi) # 지표 값 데이터 저장
 
-plot(eval_clust[1,], type = 'l')
-plot(eval_clust[4,], type = 'l')
+plot(usd_eval_clust[1,], type = 'l')
+plot(usd_eval_clust[4,], type = 'l')
 
-pc <- tsclust(usd_part_Norm, type = "partitional", k = 10L, 
-              distance = "dtw_basic", centroid = "pam", 
-              seed = 3247L, trace = TRUE,
-              args = tsclust_args(dist = list(window.size = 30L)))
-plot(pc)
+
+plot(usd_eval_clust[1,], type = 'l', main="Silhouette index(to be maximized)")
+
+plot(usd_eval_clust[2,], type = 'l', main="Score function(to be maximized)")
+
+plot(usd_eval_clust[3,], type = 'l', main="Calinski-Harabasz index(to be maximized)")
+
+plot(usd_eval_clust[4,], type = 'l', main="Davies–Bouldin index(to be minimized)")
+
+plot(usd_eval_clust[5,], type = 'l', main="Modified Davies–Bouldin index(to be minimized)")
+
+plot(usd_eval_clust[6,], type = 'l', main="Dunn index(to be maximized)")
+
+plot(usd_eval_clust[7,], type = 'l', main="COP index(to be minimized)")
+
+
+
+## 6개 군집이 최적
+# 군집 그래프
+usd_pc <- tsclust(usd_part_Norm, type = "partitional", k = 6L, 
+                   distance = "dtw_basic", centroid = "pam", 
+                   seed = 3247L, trace = TRUE,
+                   args = tsclust_args(dist = list(window.size = 30L)))
+plot(usd_pc)
+# 각 군집 그래프
+plot(usd_pc, type = "sc", clus = 1L)
+
+# 군집 별 센트로이드 그래프(중위)
+plot(usd_pc, type = "centroids", clus = 1L)
+plot(usd_pc, type = "centroids", clus = 2L)
+plot(usd_pc, type = "centroids", clus = 3L)
+plot(usd_pc, type = "centroids", clus = 4L)
+plot(usd_pc, type = "centroids", clus = 5L)
+plot(usd_pc, type = "centroids", clus = 6L)
+
+usd_pc@control
+usd_pc@cluster
+clust_data <- cbind(names(usd_part_Norm), cluster = usd_pc@cluster)
+
+# 군집 별 구간 리스트
+usd_clust <- list()
+for (i in 1:6){
+  usd_clust[i] <- list(clust_data[,1][as.numeric(clust_data[,2])==i])
+}
+
+# 군집 별 다음 구간
+usd_next_period <- usd_clust
+for (i in 1:6){
+  for (j in 1:length(usd_clust[[i]])){
+    usd_next_period[[i]][j] <- names(usd_part_next[names(usd_part_now)==usd_clust[[i]][j]])
+  }
+}
+usd_next_period
+usd_part_now[usd_clust[[1]][1]]
+usd_part_next[names(usd_part_next) == usd_next_period[[1]][1]]
+usd_next_period
+
+# 다음달 수익률 확인 리스트
+usd_next_period_ts <- list()
+for (i in 1:6){
+  usd_next_period_ts[[i]] <- usd_part_next[usd_next_period[[i]]]
+  for (j in 1:length(usd_next_period_ts[[i]])){
+    usd_next_period_ts[[i]][[j]] <- ts(usd_next_period_ts[[i]][[j]], start = 1, end = length(usd_next_period_ts[[i]][[j]]))
+  }
+}
+usd_next_period_ts
+usd_next_period_ts[[1]][1]
+
+
+Return.calculate(usd_next_period_ts[[1]][[1]]) %>% xts::last(length(usd_next_period_ts[[1]][[1]])-1) %>%
+  sapply(., function(x) {prod(1+x) - 1})
+
+# 누적수익률 계산
+usd_next_rets <- list()
+for (i in 1:6){
+  usd_next_rets[[i]] <- list()
+  for (j in 1:length(usd_next_period_ts[[i]])){
+    usd_next_rets[[i]][[j]] <- Return.calculate(usd_next_period_ts[[i]][[j]]) %>% 
+      xts::last(length(usd_next_period_ts[[i]][[j]])-1) %>%
+      sapply(., function(x) {prod(1+x) - 1})
+  }
+}
+
+usd_rets_mean <- list()
+usd_rets_data <- list()
+for (i in 1:6){
+  usd_rets_data[[i]] <- list()
+  rets_sum <- list()
+  for (j in 1:length(usd_next_rets[[i]])){
+    rets_sum <- append(rets_sum, usd_next_rets[[i]][[j]][[length(usd_next_rets[[i]][[j]])]])
+  }
+  rets_sum <- rets_sum %>% unlist
+  usd_rets_data[[i]] <- append(usd_rets_data[[i]], rets_sum) %>% unlist
+  usd_rets_mean <- append(usd_rets_mean, sum(rets_sum)/length(rets_sum))
+}
+
+usd_rets_data # 군집 별 월별 누적수익률 모멘텀 모든 데이터
+usd_rets_mean # 군집별 다음달 누적수익률 평균
 
