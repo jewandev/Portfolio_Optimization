@@ -1,6 +1,3 @@
-library(dtwclust)
-library(dtw)
-setwd('/Users/wan/GitHub/Portfolio_Optimization/time_series_clustering')
 ## dtwclust----
 data("uciCT")
 glimpse(CharTraj)
@@ -83,6 +80,28 @@ usd_p <- usd_price[c(usd_ep[2]:usd_ep[length(usd_ep)-1]), 1]
 usd_p <- usd_p[-1, 1]
 write.csv(data.frame(usd_p), 'data/usd_close.csv')
 
+# 한국 1년국채
+krw <- read.csv('data/krw.csv')
+library(dplyr)
+glimpse(krw)
+library(timetk)
+krw_price <- krw[c(1, 2)]
+colnames(krw_price) <- (c('Date', 'Price'))
+krw_price <- na.omit(krw_price)
+library(readr)
+library(lubridate)
+krw_price$Date <- ymd(krw_price$Date) # ymd()로 형태를 yyyy-mm-dd로 변경
+krw_price <- tk_xts(krw_price, date_var = Date) # tk_xts()로 시계열로 변경, 인덱스: krw_price$Date
+print(tail(krw_price))
+head(krw_price)
+krw_ep = endpoints(krw_price, on = 'months')
+write.csv(data.frame(krw_price), 'data/krw_close.csv')
+
+
+
+library(dtwclust)
+library(dtw)
+setwd('/Users/wan/GitHub/Portfolio_Optimization/time_series_clustering')
 # 분할해보기(비교 데이터 & 다음달데이터) ----
 library(quantmod)
 library(PerformanceAnalytics)
@@ -284,6 +303,7 @@ ksp_clust <- list()
 for (i in 1:5){
   ksp_clust[i] <- list(clust_data[,1][as.numeric(clust_data[,2])==i])
 }
+ksp_clust
 
 # 군집 별 다음 구간
 ksp_next_period <- ksp_clust
@@ -591,4 +611,4 @@ for (i in 1:6){
 
 usd_rets_data # 군집 별 월별 누적수익률 모멘텀 모든 데이터
 usd_rets_mean # 군집별 다음달 누적수익률 평균
-
+save.image(file = 'dtw_clustering.RData')
