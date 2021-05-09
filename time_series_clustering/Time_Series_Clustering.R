@@ -296,12 +296,12 @@ plot(ksp_pc, type = "centroids", clus = 5L)
 
 ksp_pc@control
 ksp_pc@cluster
-clust_data <- cbind(names(ksp_part_Norm), cluster = ksp_pc@cluster)
+ksp_clust_data <- cbind(Date = names(ksp_part_Norm), cluster = ksp_pc@cluster)
 
 # 군집 별 구간 리스트
 ksp_clust <- list()
 for (i in 1:5){
-  ksp_clust[i] <- list(clust_data[,1][as.numeric(clust_data[,2])==i])
+  ksp_clust[i] <- list(ksp_clust_data[,1][as.numeric(ksp_clust_data[,2])==i])
 }
 ksp_clust
 
@@ -430,12 +430,12 @@ plot(ksdq_pc, type = "centroids", clus = 4L)
 
 ksdq_pc@control
 ksdq_pc@cluster
-clust_data <- cbind(names(ksdq_part_Norm), cluster = ksdq_pc@cluster)
+ksdq_clust_data <- cbind(Date = names(ksdq_part_Norm), cluster = ksdq_pc@cluster)
 
 # 군집 별 구간 리스트
 ksdq_clust <- list()
 for (i in 1:4){
-  ksdq_clust[i] <- list(clust_data[,1][as.numeric(clust_data[,2])==i])
+  ksdq_clust[i] <- list(ksdq_clust_data[,1][as.numeric(ksdq_clust_data[,2])==i])
 }
 
 # 군집 별 다음 구간
@@ -550,12 +550,12 @@ plot(usd_pc, type = "centroids", clus = 6L)
 
 usd_pc@control
 usd_pc@cluster
-clust_data <- cbind(names(usd_part_Norm), cluster = usd_pc@cluster)
+usd_clust_data <- cbind(Date = names(usd_part_Norm), cluster = usd_pc@cluster)
 
 # 군집 별 구간 리스트
 usd_clust <- list()
 for (i in 1:6){
-  usd_clust[i] <- list(clust_data[,1][as.numeric(clust_data[,2])==i])
+  usd_clust[i] <- list(usd_clust_data[,1][as.numeric(usd_clust_data[,2])==i])
 }
 
 # 군집 별 다음 구간
