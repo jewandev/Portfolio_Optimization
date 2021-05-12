@@ -580,7 +580,7 @@ for (i in 1:6){
 }
 usd_next_period_ts
 usd_next_period_ts[[1]][1]
-
+plot(usd_next_period_ts[[1]][1])
 
 Return.calculate(usd_next_period_ts[[1]][[1]]) %>% xts::last(length(usd_next_period_ts[[1]][[1]])-1) %>%
   sapply(., function(x) {prod(1+x) - 1})
