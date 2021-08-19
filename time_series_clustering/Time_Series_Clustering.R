@@ -39,7 +39,7 @@ library(readr)
 library(tidyverse)
 library(lubridate)
 ### 코스피
-kospi <- read.csv('data/kospi.csv')
+kospi <- read.csv('data/kospi2.csv')
 glimpse(kospi)
 kospi_price <- kospi[c(1, 2)]
 colnames(kospi_price) <- (c('Date', 'Price'))
@@ -51,28 +51,12 @@ print(tail(kospi_price))
 ksp_ep = endpoints(kospi_price, on = 'months')
 kospi_p <- kospi_price[c(ksp_ep[2]:ksp_ep[length(ksp_ep)-1]), 1]
 kospi_p <- kospi_p[-1, 1]
-write.csv(data.frame(kospi_p), 'data/kospi_close.csv')
+#write.csv(data.frame(kospi_p), 'data/kospi_close.csv')
 # data.frame으로 설정해서 시계열 인덱스 안 사라지게 함.
-
-### 코스닥 테스트
-kospi_t <- read.csv('data/kospi_test.csv')
-glimpse(kospi_t)
-kospi_price_t <- kospi_t[c(1, 2)]
-colnames(kospi_price_t) <- (c('Date', 'Price'))
-kospi_price_t <- na.omit(kospi_price_t)
-kospi_price_t$Price <- parse_number(kospi_price_t$Price) # 열에서 숫자만 추출
-kospi_price_t$Date <- ymd(kospi_price_t$Date) # ymd()로 형태를 yyyy-mm-dd로 변경
-kospi_price_t <- tk_xts(kospi_price_t, date_var = Date) # tk_xts()로 시계열로 변경, 인덱스: kospi_price_t$Date
-print(tail(kospi_price_t))
-#ksp_t_ep = endpoints(kospi_price_t, on = 'months')
-#kospi_p_t <- kospi_price_t[c(ksp_t_ep[2]:ksp_t_ep[length(ksp_t_ep)-1]), 1]
-#kospi_p_t <- kospi_p_t[-1, 1]
-#write.csv(data.frame(kospi_p_t), 'data/kospi_close_test.csv')
-write.csv(data.frame(kospi_price_t), 'data/kospi_close_test.csv')
 
 
 ### 코스닥
-kosdaq <- read.csv('data/kosdaq.csv')
+kosdaq <- read.csv('data/kosdaq2.csv')
 glimpse(kosdaq)
 kosdaq_price <- kosdaq[c(1, 2)]
 colnames(kosdaq_price) <- (c('Date', 'Price'))
@@ -86,24 +70,9 @@ kosdaq_p <- kosdaq_price[c(ksdq_ep[2]:ksdq_ep[length(ksdq_ep)-1]), 1]
 kosdaq_p <- kosdaq_p[-1, 1]
 write.csv(data.frame(kosdaq_p), 'data/kosdaq_close.csv')
 
-### 코스닥 테스트
-kosdaq_t <- read.csv('data/kosdaq_test.csv')
-glimpse(kosdaq_t)
-kosdaq_price_t <- kosdaq_t[c(1, 2)]
-colnames(kosdaq_price_t) <- (c('Date', 'Price'))
-kosdaq_price_t <- na.omit(kosdaq_price_t)
-kosdaq_price_t$Price <- parse_number(kosdaq_price_t$Price) # 열에서 숫자만 추출
-kosdaq_price_t$Date <- ymd(kosdaq_price_t$Date) # ymd()로 형태를 yyyy-mm-dd로 변경
-kosdaq_price_t <- tk_xts(kosdaq_price_t, date_var = Date) # tk_xts()로 시계열로 변경, 인덱스: kosdaq_price_t$Date
-print(tail(kosdaq_price_t))
-ksdq_t_ep = endpoints(kosdaq_price_t, on = 'months')
-#kosdaq_p_t <- kosdaq_price_t[c(ksdq_t_ep[2]:ksdq_t_ep[length(ksdq_t_ep)-1]), 1]
-#kosdaq_p_t <- kosdaq_p_t[-1, 1]
-#write.csv(data.frame(kosdaq_p_t), 'data/kosdaq_close_test.csv')
-write.csv(data.frame(kosdaq_price_t), 'data/kosdaq_close_test.csv')
 
 ### 달러환율
-usd <- read.csv('data/USD_KRW.csv')
+usd <- read.csv('data/USD_KRW2.csv')
 glimpse(usd)
 usd_price <- usd[c(1, 2)]
 colnames(usd_price) <- (c('Date', 'Price'))
@@ -117,28 +86,14 @@ usd_p <- usd_price[c(usd_ep[2]:usd_ep[length(usd_ep)-1]), 1]
 usd_p <- usd_p[-1, 1]
 write.csv(data.frame(usd_p), 'data/usd_close.csv')
 
-### 달러환율 테스트
-usd_t <- read.csv('data/USD_KRW_test.csv')
-glimpse(usd_t)
-usd_price_t <- usd_t[c(1, 2)]
-colnames(usd_price_t) <- (c('Date', 'Price'))
-usd_price_t <- na.omit(usd_price_t)
-usd_price_t$Price <- parse_number(usd_price_t$Price) # 열에서 숫자만 추출
-usd_price_t$Date <- ymd(usd_price_t$Date) # ymd()로 형태를 yyyy-mm-dd로 변경
-usd_price_t <- tk_xts(usd_price_t, date_var = Date) # tk_xts()로 시계열로 변경, 인덱스: usd_price_t$Date
-print(tail(usd_price_t))
-usd_t_ep = endpoints(usd_price_t, on = 'months')
-#usd_p_t <- usd_price_t[c(usd_t_ep[2]:usd_t_ep[length(usd_t_ep)-1]), 1]
-#usd_p_t <- usd_p_t[-1, 1]
-#write.csv(data.frame(usd_p_t), 'data/usd_close_test.csv')
-write.csv(data.frame(usd_price_t), 'data/usd_close_test.csv')
-
 # 한국 1년국채
-krw <- read.csv('data/krw.csv')
+krw <- read.csv('data/krw2.csv')
 glimpse(krw)
+tail(krw)
 krw_price <- krw[c(1, 2)]
 colnames(krw_price) <- (c('Date', 'Price'))
 krw_price <- na.omit(krw_price)
+krw_price$Price <- parse_number(krw_price$Price)
 krw_price$Date <- ymd(krw_price$Date) # ymd()로 형태를 yyyy-mm-dd로 변경
 krw_price <- tk_xts(krw_price, date_var = Date) # tk_xts()로 시계열로 변경, 인덱스: krw_price$Date
 print(tail(krw_price))
@@ -154,37 +109,62 @@ length(usd_price)
 length(usd_price_t)
 length(krw_price)
 # 시계열 병합(학습데이터)
-train_merge <- merge(merge(kospi_price, kosdaq_price, join = 'inner'), usd_price, join = 'inner')
-colnames(train_merge) <- (c('kospi', 'kosdaq', 'usd'))
+train_merge <- merge(merge(merge(kospi_price, kosdaq_price, join = 'inner'), usd_price, join = 'inner'), krw_price, join = "inner")
+colnames(train_merge) <- (c("kospi", "kosdaq", "usd", "krw"))
 head(train_merge)
-write.csv(data.frame(train_merge), 'data/train_merge.csv')
+write.csv(data.frame(train_merge), 'data/train_merge_real.csv')
 ksp_close <- train_merge[,1]
 ksp_ep = endpoints(ksp_close, on = 'months')
 kospi_p <- ksp_close[c(ksp_ep[2]:ksp_ep[length(ksp_ep)-1]), 1]
 kospi_p <- kospi_p[-1, 1]
-write.csv(data.frame(kospi_p), 'data/kospi_close.csv')
+write.csv(data.frame(kospi_p), 'data/kospi_close_real.csv')
 ksdq_close <- train_merge[,2]
 ksdq_ep = endpoints(ksdq_close, on = 'months')
 kosdaq_p <- ksdq_close[c(ksdq_ep[2]:ksdq_ep[length(ksdq_ep)-1]), 1]
 kosdaq_p <- kosdaq_p[-1, 1]
-write.csv(data.frame(kosdaq_p), 'data/kosdaq_close.csv')
+write.csv(data.frame(kosdaq_p), 'data/kosdaq_close_real.csv')
 usd_close <- train_merge[,3]
 usd_ep = endpoints(usd_close, on = 'months')
 usd_p <- usd_close[c(usd_ep[2]:usd_ep[length(usd_ep)-1]), 1]
 usd_p <- usd_p[-1, 1]
-write.csv(data.frame(usd_p), 'data/usd_close.csv')
+write.csv(data.frame(usd_p), 'data/usd_close_real.csv')
 
+krw_close <- train_merge[,4]
+krw_ep = endpoints(krw_close, on = "months")
+krw_p <- krw_close[c(krw_ep[2]:krw_ep[length(krw_ep)-1]), 1]
+krw_p <- krw_p[-1, 1]
+write.csv(data.frame(krw_p), "data/krw_close_real.csv")
+
+nrow(train_merge)
 # 시계열 병합(테스트데이터)
 test_merge <- merge(merge(merge(kospi_price_t, kosdaq_price_t, join = 'inner'), usd_price_t, join = 'inner'), krw_price, join = 'inner')
 colnames(test_merge) <- (c('kospi', 'kosdaq', 'usd', 'krw'))
-write.csv(data.frame(test_merge), 'data/test_merge.csv')
+write.csv(data.frame(test_merge), 'data/test_merge2.csv')
+
 ksp_close_t <- test_merge[,1]
 ksp_ep_t = endpoints(ksp_close_t, on = 'months')
 kospi_p_t <- ksp_close_t[c(ksp_ep_t[2]:ksp_ep_t[length(ksp_ep_t)-1]), 1]
 kospi_p_t <- kospi_p_t[-1, 1]
-write.csv(data.frame(kospi_p_t), 'data/kospi_close_test.csv')
+write.csv(data.frame(kospi_p_t), 'data/kospi_close_test_r.csv')
 
-#-------------
+ksdq_close_t <- test_merge[,2]
+ksdq_ep_t = endpoints(ksdq_close_t, on = 'months')
+kosdaq_p_t <- ksdq_close_t[c(ksdq_ep_t[2]:ksdq_ep_t[length(ksdq_ep_t)-1]), 1]
+kosdaq_p_t <- kosdaq_p_t[-1, 1]
+write.csv(data.frame(kosdaq_p_t), 'data/kosdaq_close_test_r.csv')
+
+usd_close_t <- test_merge[,3]
+usd_ep_t = endpoints(usd_close_t, on = 'months')
+usd_p_t <- usd_close_t[c(usd_ep_t[2]:usd_ep_t[length(usd_ep_t)-1]), 1]
+usd_p_t <- usd_p_t[-1, 1]
+write.csv(data.frame(usd_p_t), 'data/usd_close_test_r.csv')
+
+krw_close_t <- test_merge[,4]
+krw_ep_t = endpoints(krw_close_t, on = 'months')
+krw_p_t <- krw_close_t[c(krw_ep_t[2]:krw_ep_t[length(krw_ep_t)-1]), 1]
+krw_p_t <- krw_p_t[-1, 1]
+write.csv(data.frame(krw_p_t), 'data/krw_close_test_r.csv')
+
 
 library(dtwclust)
 library(dtw)
@@ -197,10 +177,15 @@ library(RiskPortfolios)
 library(tidyr)
 library(dplyr)
 library(ggplot2)
-
+# 병합데이터 불러오기
+merged <- read.csv('data/train_merge2.csv', row.names = 1,
+                   stringsAsFactors = FALSE) %>% as.xts()
+head(merged)
+krw <- merged[,4]
 ### 코스피
-ksp = read.csv('data/kospi_close.csv', row.names = 1,
-               stringsAsFactors = FALSE) %>% as.xts()
+ksp <- merged[,1]
+#ksp = read.csv('data/kospi_close_real.csv', row.names = 1,
+#               stringsAsFactors = FALSE) %>% as.xts()
 ksp_ep = endpoints(ksp, on = 'months')
 head(ksp)
 ksp_part_now <- list()
@@ -222,8 +207,9 @@ for (i in (lookback+2) : length(ksp_ep)) {
 head(ksp_part_next)
 
 ### 코스닥
-ksdq <- read.csv('data/kosdaq_close.csv', row.names = 1,
-                stringsAsFactors = FALSE) %>% as.xts()
+ksdq <- merged[,2]
+#ksdq <- read.csv('data/kosdaq_close_real.csv', row.names = 1,
+#                stringsAsFactors = FALSE) %>% as.xts()
 ksdq_ep <- endpoints(ksdq, on = 'months')
 head(ksdq)
 ksdq_part_now <- list()
@@ -245,8 +231,9 @@ for (i in (lookback+2) : length(ksdq_ep)) {
 ksdq_part_next
 
 ### 달러
-usd <- read.csv('data/usd_close.csv', row.names = 1,
-               stringsAsFactors = FALSE) %>% as.xts()
+usd <- merged[,3]
+#usd <- read.csv('data/usd_close_real.csv', row.names = 1,
+#               stringsAsFactors = FALSE) %>% as.xts()
 usd_ep <- endpoints(usd, on = 'months')
 head(usd)
 usd_part_now <- list()
@@ -699,4 +686,4 @@ for (i in 1:6){
 
 usd_rets_data # 군집 별 월별 누적수익률 모멘텀 모든 데이터
 usd_rets_mean # 군집별 다음달 누적수익률 평균
-save.image(file = 'dtw_clustering.RData')
+save.image(file = 'dtw_clustering_r.RData')

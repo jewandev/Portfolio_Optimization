@@ -5,6 +5,10 @@ library(tidyr)
 library(dplyr)
 library(ggplot2)
 
+#ksp <- kospi_p
+#ksdq <- kosdaq_p
+#usd <- usd_p
+#krw <- krw_p
 length(ksp)
 length(ksdq)
 length(krw)
@@ -15,12 +19,19 @@ tail(cbind(ksp, ksdq, krw))
 prices <- na.locf(cbind(ksp, ksdq, krw)) %>%
   setNames(c('KOSPI', 'KOSDAQ', 'KRW'))
 
-idx <- index(prices)%in%index(ksp)
-prices <- prices[idx]
-idx <- index(prices) < "2021-03-01"
-prices <- prices[idx]
+#idx <- index(prices)%in%index(ksp)
+#prices <- prices[idx]
+#idx <- index(prices) > "2014-12-31"
+#prices <- prices[idx]
 rets = na.omit(Return.calculate(prices))
+sum(is.infinite(rets))
+sum(is.na(rets))
+sum(is.nan(rets))
+rets <- replace(rets, is.infinite(rets), 0)
+sum(is.infinite(rets))
+head(rets)
 tail(rets)
+cor(rets)
 ep = endpoints(rets, on = 'months')
 print(ep)
 index(prices[ep])
@@ -76,32 +87,14 @@ rets[ep[2]]
 ep = endpoints(rets, on = 'months')
 head(rets)
 tail(rets)
-wts = list()
-#lookback = 10
-#tail(clust_data)
-#length(clust_data$Date)
-
-for (i in 2:length(ep)) {
-  #sub_price = prices[ep[i-lookback] : ep[i] , 1]
-  #sma = mean(sub_price)
-  wt = rep(0, 3)
-  wt[1] <- ifelse(clust_data$KOSPI[i-1] > 0, 0.5, 0.45)
-  #wt[1] = ifelse(last(sub_price) > sma, 1, 0)
-  wt[2] <- ifelse(clust_data$KOSDAQ[i-1] > 0, 0.5, 0.45)
-  if (clust_data$USD[i-1] < 1){
-    wt[1] = wt[1] - 0.025
-    wt[2] = wt[2] - 0.025
-  }
-  #wt[2] = 1 - wt[1]
-  wt[3] = 1 - wt[1] - wt[2]
-  
-  wts[[i-1]] = xts(t(wt), order.by = index(rets[ep[i]]))
-}
+lookback = 1
+clust_data[1,]
+nrow(rets[ep])
 
 wts = list()
-for (i in 1:length(ep)){
+for (i in lookback:(length(ep)-2)) {
   wt <- rep(0,3)
-  if (clust_data$KOSPI[i] == 1 & clust_data$KOSDAQ[i] == 1 & clust_data$USD[i] == 1){
+  if(clust_data$KOSPI[i] == 1 & clust_data$KOSDAQ[i] == 1 & clust_data$USD[i] == 1){
     wt[1] <- 0.5
     wt[2] <- 0.5
     wt[3] <- 0.0
@@ -112,13 +105,13 @@ for (i in 1:length(ep)){
     wt[3] <- 0.05
   }
   else if (clust_data$KOSPI[i] == 1 & clust_data$KOSDAQ[i] == 0 & clust_data$USD[i] == 1){
-    wt[1] <- 0.5
+    wt[1] <- 0.50
     wt[2] <- 0.45
     wt[3] <- 0.05
   }
   else if (clust_data$KOSPI[i] == 0 & clust_data$KOSDAQ[i] == 1 & clust_data$USD[i] == 1){
     wt[1] <- 0.45
-    wt[2] <- 0.5
+    wt[2] <- 0.50
     wt[3] <- 0.05
   }
   else if (clust_data$KOSPI[i] == 1 & clust_data$KOSDAQ[i] == 0 & clust_data$USD[i] == 0){
@@ -141,44 +134,31 @@ for (i in 1:length(ep)){
     wt[2] <- 0.425
     wt[3] <- 0.15
   }
-  
   wts[[i]] = xts(t(wt), order.by = index(rets[ep[i+1]]))
 }
-wts[1]
-length(clust_data$Date)
+
 wts = do.call(rbind, wts)
-length(index(wts))
-tail(rets)
-sum(is.na(rets))
-tail(wts)
+glimpse(wts)
 
-sum(wts[,1] + wts[,2] + wts[,3] != 1)
-length(ep)
-as.Date(index(wts[,1] + wts[,2] + wts[,3]!=1)[1])+1
+Tactical = Return.portfolio(R = rets, weights = wts, verbose = T)
 
-Tactical = Return.portfolio(R = rets,weights = wts, verbose = T)
-#Tactical = Return.portfolio(R = rets,weights = wts)
-head(wts)
-tail(rets) 
 head(Tactical$EOP.Value)
 tail(Tactical$EOP.Value)
-head(Tactical$portfolio.returns)
-tail(is.na(Tactical$BOP.Weight))
+head(Tactical$returns)
+tail(Tactical$returns)
+
 Tactical$returns <- Tactical$returns[-length(Tactical$returns)]
 tail(Tactical$returns)
 portfolios = na.omit(cbind(rets[,1], Tactical$returns)) %>%
-  setNames(c('코스피', '국면분석 전략'))
-
-plot(ksp)
-tail(portfolios)
-
-tail(Tactical, 10)
+  setNames(c('KOSPI', 'Portfolio'))
+head(rets[,1])
+head(portfolios)
 
 par(family = 'AppleGothic')
 tail(portfolios)
 charts.PerformanceSummary(portfolios,
                           main = "KOSPI vs Portfolio")
-
+charts.PerformanceSummary(portfolios$Portfolio)
 turnover = xts(rowSums(abs(Tactical$BOP.Weight -
                              timeSeries::lag(Tactical$EOP.Weight)),
                        na.rm = TRUE),
@@ -186,55 +166,85 @@ turnover = xts(rowSums(abs(Tactical$BOP.Weight -
 
 chart.TimeSeries(turnover)
 
-#0----
-rets_ex1 <- rets[,c(1, 3)]
-rets_ex1
+# 누적수익률 그림
+library(PerformanceAnalytics)
+chart.CumReturns(portfolios$KOSPI)
+chart.CumReturns(portfolios$Portfolio)
+# 누적수익률 수치
+Return.cumulative(portfolios$KOSPI)
+Return.cumulative(portfolios$Portfolio)
 
-ep = endpoints(rets_ex1, on = 'months')
-wts = list()
-lookback = 10
+# 연율화 수익률(산술)
+Return.annualized(portfolios$KOSPI, geometric = F)
+Return.annualized(portfolios$Portfolio, geometric = F)
 
-for (i in (lookback+1) : length(ep)) {
-  sub_price = prices[ep[i-lookback] : ep[i] , 1]
-  sma = mean(sub_price)
-  wt = rep(0, 2)
-  wt[1] = ifelse(last(sub_price) > sma, 1, 0)
-  wt[2] = 1 - wt[1]
-  
-  wts[[i]] = xts(t(wt), order.by = index(rets_ex1[ep[i]]))
-}
+# 연율화 수익률(기하)
+Return.annualized(portfolios$KOSPI)
+Return.annualized(portfolios$Portfolio)
 
-for (i in 1:length(ep)) {
-  wt = rep(0, 2)
-  wt[1] <- ifelse(clust_data$KOSPI[i-1] > 0, 0.5, 0.45)
-  #wt[1] = ifelse(last(sub_price) > sma, 1, 0)
-  wt[2] <- ifelse(clust_data$KOSDAQ[i-1] > 0, 0.5, 0.45)
-  if (clust_data$USD[i-1] < 1){
-    wt[1] = wt[1] - 0.025
-    wt[2] = wt[2] - 0.025
-  }
-  #wt[2] = 1 - wt[1]
-  wt[3] = 1 - wt[1] - wt[2]
-  
-  wts[[i-1]] = xts(t(wt), order.by = index(rets[ep[i]]))
-}
+# 연율화 변동성
+sd(portfolios$KOSPI) * sqrt(12)
+sd(portfolios$Portfolio) * sqrt(12)
 
-wts = do.call(rbind, wts)
-Tactical = Return.portfolio(rets, wts, verbose = TRUE)
-portfolios = na.omit(cbind(rets[,1], Tactical$returns)) %>%
-  setNames(c('매수 후 보유', '시점 선택 전략'))
+# 최대낙폭
+maxDrawdown(portfolios$KOSPI)
+maxDrawdown(portfolios$Portfolio)
 
-head(Tactical, 10)
+# 연도별 수익률
+apply.yearly(portfolios$KOSPI, Return.cumulative)
+apply.yearly(portfolios$Portfolio, Return.cumulative)
+# 연도별 수익률 그래프
+library(lubridate)
+library(tidyr)
+library(ggplot2)
 
-par(family = 'AppleGothic')
+R.yr = apply.yearly(portfolios$Portfolio, Return.cumulative) %>%
+#R.yr = apply.yearly(portfolios$KOSPI, Return.cumulative) %>%
+  fortify.zoo() %>%
+  mutate(Index = year(Index)) %>%
+  gather(key, value, -Index) %>%
+  mutate(key = factor(key, levels = unique(key)))
 
-charts.PerformanceSummary(portfolios,
-                          main = "Buy & Hold vs Tactical")
+ggplot(R.yr, aes(x = Index, y = value, fill = key)) +
+  geom_bar(position = "dodge", stat = "identity") +
+  ggtitle('Yearly Return') +
+  xlab(NULL) +
+  ylab(NULL) +
+  theme_bw() +
+  scale_y_continuous(expand = c(0.03, 0.03)) +
+  scale_x_continuous(breaks = R.yr$Index,
+                     expand = c(0.01, 0.01)) +
+  theme(plot.title = element_text(hjust = 0.5,
+                                  size = 12),
+        legend.position = 'bottom',
+        legend.title = element_blank(),
+        legend.text = element_text(size=7),
+        axis.text.x = element_text(angle = 45,
+                                   hjust = 1, size = 8),
+        panel.grid.minor.x = element_blank() ) +
+  guides(fill = guide_legend(byrow = TRUE)) +
+  geom_text(aes(label = paste(round(value * 100, 2), "%"),
+                vjust = ifelse(value >= 0, -0.5, 1.5)),
+            position = position_dodge(width = 1),
+            size = 3)
 
-turnover = xts(rowSums(abs(Tactical$BOP.Weight -
-                             timeSeries::lag(Tactical$EOP.Weight)),
-                       na.rm = TRUE),
-               order.by = index(Tactical$BOP.Weight))
+# 승률
+UpsideFrequency(portfolios$Portfolio, MAR = portfolios$KOSPI)
+UpsideFrequency(portfolios$KOSPI, MAR = portfolios$Portfolio)
 
-chart.TimeSeries(turnover)
-plot(ts(ksp_part_now[1]$`2011-04`, start = 1)
+# 롤링 윈도우 값
+roll_12 = portfolios$Portfolio %>% apply.monthly(., Return.cumulative) %>%
+  rollapply(., 12, Return.annualized) %>% na.omit() %>%
+  UpsideFrequency(.,MAR = portfolios$KOSPI)
+
+roll_24 = portfolios$Portfolio %>% apply.monthly(., Return.cumulative) %>%
+  rollapply(., 24, Return.annualized) %>% na.omit() %>%
+  UpsideFrequency(., MAR = portfolios$KOSPI)
+
+roll_36 = portfolios$Portfolio %>% apply.monthly(., Return.cumulative) %>%
+  rollapply(., 36, Return.annualized) %>% na.omit() %>%
+  UpsideFrequency(., MAR = portfolios$KOSPI)
+
+roll_win = cbind(roll_12, roll_24, roll_36)
+print(roll_win)
+

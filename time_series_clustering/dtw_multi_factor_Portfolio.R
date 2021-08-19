@@ -1,5 +1,6 @@
 setwd('/Users/wan/GitHub/Portfolio_Optimization/time_series_clustering')
-load('dtw_clustering.RData')
+#load('dtw_clustering.RData')
+load('dtw_clustering_r.RData')
 
 library(quantmod)
 library(PerformanceAnalytics)
